@@ -1,0 +1,11 @@
+How to Modify the Probabilities:
+
+Locate the prizes array in the script tag. 
+
+You can alter the win chance by changing the value of the weight property.
+
+The logic handles calculations automatically, meaning the total weights do not need to add up to 100.
+
+If you set Grand Prize to 1 and Better Luck to 99, the algorithm calculates a 1% chance for the Grand Prize and 99% for Better Luck.
+
+The wheel draws equal slices visually to keep players unaware of the rigged mathematical probabilities.

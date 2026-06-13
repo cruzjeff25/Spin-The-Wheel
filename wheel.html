@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="author" content="Jeffrey Cruz">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adjustable Probability Wheel</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .wheel-container {
+            position: relative;
+            margin: 20px;
+        }
+        canvas {
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            background: #fff;
+        }
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid #ff4757;
+            z-index: 10;
+        }
+        button {
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #2ed573;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button:disabled {
+            background-color: #a4b0be;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>SPIN THE WHEEL</h1>
+    <h4>Get chance to win a laptop</h4>
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <canvas id="wheelCanvas" width="400" height="400"></canvas>
+    </div>
+    <button id="spinBtn">SPIN</button>
+
+<script>
+    const canvas = document.getElementById("wheelCanvas");
+    const ctx = canvas.getContext("2d");
+    const spinBtn = document.getElementById("spinBtn");
+
+    // 1. CONFIGURATION: Adjust your items and their relative probability weights here
+    const prizes = [
+        { label: "500 Pesos Voucher",   weight: 3, color: "#ff1100" }, // 15% chance
+        { label: "Flashdrive",   weight: 99, color: "#ff6600" }, // 15% chance
+        { label: "Gaming Mat",   weight: 15, color: "#ffa502" }, // 15% chance
+        { label: "Laptop", weight: 0, color: "#747d8c" }, // 40% chance
+    ];
+
+    const size = prizes.length;
+    const center = canvas.width / 2;
+    const radius = canvas.width / 2;
+    const arcAngle = (2 * Math.PI) / size;
+    
+    let currentRotation = 0;
+    let isSpinning = false;
+
+    // Draw static visual wheel (equal visual sizes for illusion)
+    function drawWheel() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < size; i++) {
+            const angle = i * arcAngle + currentRotation;
+            
+            // Draw Slice
+            ctx.beginPath();
+            ctx.fillStyle = prizes[i].color;
+            ctx.moveTo(center, center);
+            ctx.arc(center, center, radius, angle, angle + arcAngle);
+            ctx.lineTo(center, center);
+            ctx.fill();
+
+            // Draw Text
+            ctx.save();
+            ctx.translate(center, center);
+            ctx.rotate(angle + arcAngle / 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 16px sans-serif";
+            ctx.textAlign = "right";
+            ctx.fillText(prizes[i].label, radius - 20, 5);
+            ctx.restore();
+        }
+    }
+
+    // 2. PROBABILITY ENGINE: Selects winning slice based on configured weights
+    function getWeightedRandomIndex() {
+        const totalWeight = prizes.reduce((sum, prize) => sum + prize.weight, 0);
+        let random = Math.random() * totalWeight;
+        
+        for (let i = 0; i < prizes.length; i++) {
+            if (random < prizes[i].weight) {
+                return i;
+            }
+            random -= prizes[i].weight;
+        }
+        return 0;
+    }
+
+    // 3. ANIMATION ENGINE: Physics-based calculation for exact landing
+    function spin() {
+        if (isSpinning) return;
+        isSpinning = true;
+        spinBtn.disabled = true;
+
+        const winningIndex = getWeightedRandomIndex();
+        
+        // Calculate target angle to align winning slice with the top pointer (270 degrees or 1.5 * Math.PI)
+        const sliceCenterAngle = (winningIndex * arcAngle) + (arcAngle / 2);
+        const targetAngleInWheelCoords = (1.5 * Math.PI) - sliceCenterAngle;
+        
+        // Normalize rotation to prevent infinite wind-up accumulation
+        const baseRotation = currentRotation % (2 * Math.PI);
+        
+        // Force 5 full extra aesthetic spins before stopping on target
+        const extraSpins = 5 * 2 * Math.PI; 
+        const finalRotationTarget = baseRotation + extraSpins + (targetAngleInWheelCoords - baseRotation);
+
+        const duration = 4000; // 4 seconds animation
+        const startTimestamp = performance.now();
+
+        // Cubic Easing Out formula for smooth friction slow-down
+        function easeOutCubic(x) {
+            return 1 - Math.pow(1 - x, 3);
+        }
+
+        function animate(now) {
+            const elapsed = now - startTimestamp;
+            const progress = Math.min(elapsed / duration, 1);
+            
+            const easedProgress = easeOutCubic(progress);
+            currentRotation = baseRotation + (finalRotationTarget - baseRotation) * easedProgress;
+            
+            drawWheel();
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                // Callback execution
+                setTimeout(() => alert(`You won: ${prizes[winningIndex].label}!`), 100);
+            }
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    spinBtn.addEventListener("click", spin);
+    drawWheel(); // Initial render
+</script>
+
+</body>
+</html>
